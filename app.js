@@ -131,6 +131,72 @@ const RECIPES = [
     why: "步骤短，观感强，两个人过节或犒劳自己都合适。",
     steps: ["牛排室温回温、擦干", "热锅硬煎两面", "黄油迷迭香浇脂，静置再切"],
   },
+  {
+    id: "gyudon",
+    name: "日式肥牛丼",
+    cuisine: "japanese_korean",
+    spice: "mild",
+    budget: "mid",
+    skill: "beginner",
+    minutes: 20,
+    why: "一锅收汁浇在饭上，日料里最像家常晚饭的那口。",
+    steps: ["洋葱炒软", "肥牛片下锅，酱油、糖、味淋收汁", "浇在热饭上，可加半熟蛋"],
+  },
+  {
+    id: "kimchi-fried-rice",
+    name: "韩式泡菜炒饭",
+    cuisine: "japanese_korean",
+    spice: "hot",
+    budget: "low",
+    skill: "beginner",
+    minutes: 15,
+    why: "剩饭加泡菜就能出锅，辣度随泡菜自己调。",
+    steps: ["泡菜切碎炒出红油", "下隔夜饭翻匀", "煎蛋盖顶，可加芝麻和海苔"],
+  },
+  {
+    id: "miso-salmon",
+    name: "味噌烤三文鱼",
+    cuisine: "japanese_korean",
+    spice: "none",
+    budget: "high",
+    skill: "home",
+    minutes: 25,
+    why: "步骤短、观感好，两个人也值得开一次烤箱或空气炸。",
+    steps: ["味噌、味淋、糖调酱腌鱼", "烤箱或空气炸至表面上色", "配米饭和焯青菜"],
+  },
+  {
+    id: "vietnamese-rolls",
+    name: "越南春卷",
+    cuisine: "southeast_asian",
+    spice: "none",
+    budget: "mid",
+    skill: "beginner",
+    minutes: 20,
+    why: "几乎不用开火，清爽、能按人数加份。",
+    steps: ["米纸浸软", "生菜、香草、虾或豆腐卷紧", "配鱼露花生酱或酸甜蘸料"],
+  },
+  {
+    id: "tom-yum",
+    name: "泰式冬阴功",
+    cuisine: "southeast_asian",
+    spice: "hot",
+    budget: "mid",
+    skill: "home",
+    minutes: 30,
+    why: "酸辣开胃，人多时一锅汤就能把饭桌撑起来。",
+    steps: ["香茅、南姜、柠檬叶煮汤", "下虾和蘑菇", "鱼露、柠檬汁、辣椒调味"],
+  },
+  {
+    id: "coconut-curry",
+    name: "南洋咖喱鸡",
+    cuisine: "southeast_asian",
+    spice: "mild",
+    budget: "high",
+    skill: "home",
+    minutes: 40,
+    why: "椰浆把辣收软，适合想吃东南亚但不想太刺激的晚上。",
+    steps: ["咖喱膏炒香", "下鸡块上色", "倒入椰浆小火煮软，配米饭"],
+  },
 ];
 
 const SHOPS = [
@@ -273,6 +339,12 @@ const LOCAL_RECIPE_INGREDIENTS = {
   "salad-bowl": ["鸡胸肉", "蔬菜"],
   risotto: ["蘑菇", "洋葱", "意大利米"],
   steak: ["牛排", "时蔬"],
+  gyudon: ["肥牛片", "洋葱", "米饭"],
+  "kimchi-fried-rice": ["泡菜", "米饭"],
+  "miso-salmon": ["三文鱼", "味噌"],
+  "vietnamese-rolls": ["米纸", "生菜", "虾"],
+  "tom-yum": ["香茅", "虾", "柠檬叶"],
+  "coconut-curry": ["鸡腿", "咖喱膏", "椰浆"],
 };
 
 let state = {
@@ -407,6 +479,8 @@ function optionsFor(id) {
       return [
         { value: "chinese", label: "中餐", sub: "这口胃，还是得米饭哄" },
         { value: "western", label: "西餐", sub: "今晚让刀叉上个班" },
+        { value: "japanese_korean", label: "日韩料理", sub: "寿司烤肉拉面，今晚出国但不办签证" },
+        { value: "southeast_asian", label: "东南亚菜", sub: "香茅柠檬叶，把空调开成热带" },
         { value: "any", label: "都行", sub: "别问我，命运请发牌" },
       ];
     case "spice":
@@ -518,7 +592,13 @@ function totalPrice(dishes) {
 }
 
 function cuisineLabel(v) {
-  return { chinese: "中餐", western: "西餐", any: "不限" }[v] || "";
+  return {
+    chinese: "中餐",
+    western: "西餐",
+    japanese_korean: "日韩",
+    southeast_asian: "东南亚",
+    any: "不限",
+  }[v] || "";
 }
 
 function spiceLabel(v) {
@@ -634,6 +714,8 @@ function renderHistoryScreen(time) {
               <select name="cuisine">
                 <option value="chinese">中餐</option>
                 <option value="western">西餐</option>
+                <option value="japanese_korean">日韩料理</option>
+                <option value="southeast_asian">东南亚菜</option>
                 <option value="any">其他 / 不分类</option>
               </select>
             </label>
@@ -1134,7 +1216,13 @@ function pickHistoryOrder(answers) {
 
 function takeoutSearchTerm(answers, historyPick) {
   if (historyPick) return `${historyPick.storeName} ${historyPick.dishName}`;
-  const cuisine = answers.cuisine === "western" ? "西餐" : answers.cuisine === "chinese" ? "中餐" : "附近美食";
+  const cuisine =
+    {
+      chinese: "中餐",
+      western: "西餐",
+      japanese_korean: "日料 韩餐",
+      southeast_asian: "东南亚 泰餐",
+    }[answers.cuisine] || "附近美食";
   const spice = spiceLabel(answers.spice);
   return `${cuisine} ${spice} ${budgetLabel("takeout", answers.budget)}`.trim();
 }

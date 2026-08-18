@@ -62,6 +62,23 @@ class RecipeRecommendationTests(unittest.TestCase):
         self.assertTrue(recipe["requiresShopping"])
         self.assertIn("意大利米", recipe["missingIngredients"])
 
+    def test_japanese_korean_recipe_matches_cuisine_filter(self):
+        result = recommend_recipes(
+            {
+                "pantryItems": ["泡菜", "米饭", "鸡蛋"],
+                "willingToShop": False,
+                "filters": {
+                    "cuisine": "japanese_korean",
+                    "spice": "hot",
+                    "budget": "low",
+                    "skill": "beginner",
+                    "maxCookMinutes": 20,
+                },
+            }
+        )
+
+        self.assertEqual(result["recommendations"][0]["id"], "kimchi-fried-rice")
+
 
 class MapProviderTests(unittest.TestCase):
     @patch.dict(os.environ, {}, clear=True)
