@@ -1,0 +1,108 @@
+:root {
+  --color-primary: #c2410c;
+  --color-on-primary: #fff7ed;
+  --color-background: #fff8f1;
+  --color-foreground: #1c1917;
+  --color-muted: #57534e;
+  --color-border: #f5d0a9;
+  --color-card: #ffffff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  width: 360px;
+  font: 14px/1.45 "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: var(--color-foreground);
+  background: var(--color-background);
+}
+
+header,
+main,
+footer {
+  padding: 12px 14px;
+}
+
+header {
+  border-bottom: 1px solid var(--color-border);
+}
+
+h1 {
+  margin: 0 0 6px;
+  font-size: 16px;
+}
+
+.hint,
+.status {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.status {
+  min-height: 1.4em;
+}
+
+.list {
+  max-height: 320px;
+  overflow: auto;
+  display: grid;
+  gap: 8px;
+}
+
+.card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+  padding: 8px;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+}
+
+.card input[type="text"],
+.card input[type="number"] {
+  width: 100%;
+  margin-top: 4px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 4px 6px;
+  font: inherit;
+}
+
+.fields {
+  display: grid;
+  gap: 4px;
+}
+
+footer {
+  display: grid;
+  gap: 8px;
+  border-top: 1px solid var(--color-border);
+}
+
+button {
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 12px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.primary {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.ghost {
+  background: transparent;
+  color: var(--color-primary);
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

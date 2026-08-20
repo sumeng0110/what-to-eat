@@ -26,6 +26,7 @@
 - 附近餐厅：高德 Web 服务 API
 - 后端：Python 标准库，无第三方依赖
 - 个人历史：浏览器 `localStorage`
+- 可选：Chrome / Edge Manifest V3 扩展，导入当前外卖页上已经显示的店和菜
 
 ## 本地运行
 
@@ -54,6 +55,18 @@
 
 没有高德 Key 时，做饭流程和个人常点仍可使用，但不会显示附近餐厅。
 
+## Chrome / Edge 扩展（可选）
+
+把当前外卖网页上**已经渲染出来**的店名、菜名和价格，写入本机「我的常点」。扩展只在你点击图标时读取当前标签页，不读取 Cookie、不登录、不后台爬取。
+
+1. 打开 Chrome 或 Edge 的扩展管理页：`chrome://extensions` 或 `edge://extensions`
+2. 打开「开发者模式」
+3. 选择「加载已解压的扩展程序」，指向项目里的 `extension` 文件夹
+4. 先打开美团 / 饿了么网页，让店铺列表或菜单显示出来
+5. 点击扩展图标，勾选要导入的条目，再打开 <http://localhost:3000> 的「我的常点」
+
+页面改版后识别可能失败；手机 App 无法这样读取。请遵守各外卖平台的使用条款，只导入你自己正在看的内容。
+
 ## 测试
 
 ```powershell
@@ -67,7 +80,7 @@ python -m unittest -v backend.test_server
 - `.env` 已被 Git 忽略，真实 Key 不会进入仓库
 - 个人常点记录只保存在当前浏览器，不会上传到服务器
 - 地图搜索只向后端发送用户选定的经纬度
-- 应用不读取外卖平台账号、Cookie 或订单页面
+- 应用不读取外卖平台账号或 Cookie；可选扩展只在你点击后读取当前页已显示的文字
 
 ## 项目结构
 
@@ -77,6 +90,7 @@ python -m unittest -v backend.test_server
 ├── styles.css
 ├── app.js
 ├── history-store.js
+├── extension
 ├── .env.example
 └── backend
     ├── server.py
@@ -88,4 +102,4 @@ python -m unittest -v backend.test_server
 
 - 没有美团、淘宝闪购或京东外卖的实时菜单与配送数据
 - 附近餐厅结果不能作为实时外卖库存使用
-- Chrome/Edge 页面导入扩展尚未实现
+- 扩展只能读取桌面浏览器当前页已显示的内容，不能代替平台实时菜单接口

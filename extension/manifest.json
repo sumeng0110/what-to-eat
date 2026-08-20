@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "今天吃什么 · 导入当前页",
+  "version": "0.1.0",
+  "description": "把当前外卖网页上已经显示的店和菜，导入本地常点清单。不读取账号或 Cookie。",
+  "action": {
+    "default_title": "导入当前页可见店铺",
+    "default_popup": "popup.html"
+  },
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": ["http://127.0.0.1:3000/*", "http://localhost:3000/*"],
+  "content_scripts": [
+    {
+      "matches": ["http://127.0.0.1:3000/*", "http://localhost:3000/*"],
+      "js": ["bridge.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

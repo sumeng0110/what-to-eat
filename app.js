@@ -702,7 +702,7 @@ function renderHistoryScreen(time) {
         </div>
         <p class="eyebrow">只存在这个浏览器里</p>
         <h1 class="question">先把真正常点的记下来</h1>
-        <p class="hint">不需要导入账号。店名和一道常点菜，就足够开始推荐。</p>
+        <p class="hint">可手填，也可用 Chrome/Edge 扩展导入当前外卖页上已经显示的店和菜。不读取账号。</p>
         <form class="history-form question-form" id="history-form">
           <div class="field-row">
             <label class="field"><span>店名</span><input name="storeName" maxlength="80" placeholder="例如：老马兰州拉面" required /></label>
@@ -1351,6 +1351,12 @@ function restart(keepAnswers) {
   history.pushState(snapshot(), "");
   render();
 }
+
+window.addEventListener("message", (event) => {
+  if (event.source !== window) return;
+  if (event.data?.type !== "whattoeat:history-imported") return;
+  if (state.view === "history") render();
+});
 
 window.addEventListener("popstate", (event) => {
   if (event.state && event.state.view) {

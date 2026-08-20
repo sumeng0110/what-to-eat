@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>导入当前页</title>
+    <link rel="stylesheet" href="./popup.css" />
+  </head>
+  <body>
+    <header>
+      <h1>导入当前页可见内容</h1>
+      <p class="hint">只读取这个标签页已经显示的文字，不登录、不读 Cookie、不后台爬取。</p>
+    </header>
+    <main>
+      <p class="status" id="status">正在查看当前页…</p>
+      <form id="list" class="list"></form>
+    </main>
+    <footer>
+      <button class="primary" id="import" type="button" disabled>写入我的常点</button>
+      <button class="ghost" id="rescan" type="button">重新扫描</button>
+    </footer>
+    <script type="module" src="./popup.js"></script>
+  </body>
+</html>
