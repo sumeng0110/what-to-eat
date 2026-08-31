@@ -79,6 +79,25 @@ class RecipeRecommendationTests(unittest.TestCase):
 
         self.assertEqual(result["recommendations"][0]["id"], "kimchi-fried-rice")
 
+    def test_challenge_and_hour_skips_quick_noodles(self):
+        result = recommend_recipes(
+            {
+                "pantryItems": [],
+                "willingToShop": True,
+                "filters": {
+                    "cuisine": "chinese",
+                    "spice": "mild",
+                    "budget": "any",
+                    "skill": "challenge",
+                    "maxCookMinutes": 60,
+                },
+            }
+        )
+
+        ids = [recipe["id"] for recipe in result["recommendations"]]
+        self.assertNotIn("soy-noodles", ids)
+        self.assertEqual(result["recommendations"][0]["id"], "tomato-beef")
+
 
 class MapProviderTests(unittest.TestCase):
     @patch.dict(os.environ, {}, clear=True)

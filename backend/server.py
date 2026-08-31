@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import re
 import ssl
 import urllib.error
 import urllib.parse
@@ -91,6 +92,30 @@ RECIPES = [
         "ingredients": ["鲈鱼", "姜", "小葱", "蒸鱼豉油", "食用油"],
         "pantryStaples": ["食用油"],
         "steps": ["鱼身铺姜丝", "大火蒸熟", "淋蒸鱼豉油和热油"],
+    },
+    {
+        "id": "tomato-beef",
+        "name": "番茄牛腩",
+        "cuisine": "chinese",
+        "spice": "mild",
+        "priceLevel": "high",
+        "skill": "home",
+        "minutes": 70,
+        "ingredients": ["番茄", "牛腩", "葱", "食用油", "盐"],
+        "pantryStaples": ["食用油", "盐"],
+        "steps": ["牛腩焯水", "番茄炒出沙，下牛腩小火炖软", "盐、糖调味"],
+    },
+    {
+        "id": "kungpao",
+        "name": "宫保鸡丁",
+        "cuisine": "chinese",
+        "spice": "hot",
+        "priceLevel": "mid",
+        "skill": "challenge",
+        "minutes": 35,
+        "ingredients": ["鸡肉", "花生", "干辣椒", "食用油", "盐"],
+        "pantryStaples": ["食用油", "盐"],
+        "steps": ["鸡丁腌制", "调碗芡", "爆香干辣椒花生，快速翻炒收汁"],
     },
     {
         "id": "garlic-pasta",
@@ -204,6 +229,19 @@ RECIPES = [
 
 SKILL_RANK = {"beginner": 1, "home": 2, "challenge": 3}
 
+CUISINE_NEARBY = {
+    "chinese": {"types": "050100", "keywords": ""},
+    "western": {"types": "050000", "keywords": "西餐|意大利菜|披萨"},
+    "japanese_korean": {"types": "050201|050202", "keywords": "日本料理|韩国料理"},
+    "southeast_asian": {"types": "050000", "keywords": "泰国菜|越南菜|东南亚"},
+}
+
+CUISINE_TEXT = {
+    "japanese_korean": re.compile(r"日本|日式|日料|寿司|刺身|居酒屋|韩国|韩式|韩餐|韩料|和食|料亭|寿喜|鳗鱼|石锅"),
+    "southeast_asian": re.compile(r"泰国|泰式|泰餐|越南|越式|南洋|马来|新加坡|东南亚|冬阴功|印尼"),
+    "western": re.compile(r"西餐|西式|意大利|披萨|比萨|汉堡|牛排|法式|美式|意面"),
+}
+
 
 class ApiError(Exception):
     def __init__(self, status: int, code: str, message: str) -> None:
@@ -241,12 +279,33 @@ def recipe_matches(recipe: dict[str, Any], filters: dict[str, Any]) -> bool:
     if budget != "any" and recipe["priceLevel"] != budget:
         return False
 
-    max_minutes = finite_number(filters.get("maxCookMinutes"))
-    if max_minutes is not None and recipe["minutes"] > max_minutes:
+    if not cook_time_fits(recipe["minutes"], finite_number(filters.get("maxCookMinutes"))):
         return False
 
-    max_skill = SKILL_RANK.get(filters.get("skill"), SKILL_RANK["challenge"])
-    return SKILL_RANK[recipe["skill"]] <= max_skill
+    return skill_fits(recipe["skill"], filters.get("skill"))
+
+
+def cook_time_fits(minutes: int, selected: float | None) -> bool:
+    if selected is None:
+        return True
+    if selected <= 15:
+        return minutes <= 20
+    if selected <= 30:
+        return minutes <= 40
+    if selected <= 60:
+        return 30 <= minutes <= 120
+    return True
+
+
+def skill_fits(recipe_skill: str, wanted: Any) -> bool:
+    rank = SKILL_RANK.get(recipe_skill, 1)
+    if wanted == "beginner":
+        return rank == 1
+    if wanted == "home":
+        return rank <= 2
+    if wanted == "challenge":
+        return rank >= 2
+    return True
 
 
 def recommend_recipes(body: dict[str, Any]) -> dict[str, Any]:
@@ -274,7 +333,13 @@ def recommend_recipes(body: dict[str, Any]) -> dict[str, Any]:
             if item.lower() in pantry or item.lower() in staples
         ]
         coverage = len(available) / len(recipe["ingredients"])
-        score = round(max(0, coverage * 100 - len(missing) * 5 - recipe["minutes"] / 10))
+        score = coverage * 100 - len(missing) * 5
+        selected_time = finite_number(filters.get("maxCookMinutes"))
+        if filters.get("skill") == "challenge" or (selected_time is not None and 30 < selected_time <= 60):
+            score += recipe["minutes"] / 4 + SKILL_RANK[recipe["skill"]] * 10
+        else:
+            score -= recipe["minutes"] / 10
+        score = round(max(0, score))
         candidates.append(
             {
                 **recipe,
@@ -356,6 +421,16 @@ def parse_amap_location(value: Any) -> dict[str, float] | None:
         return None
 
 
+def poi_matches_cuisine(name: str, category: str, cuisine: str) -> bool:
+    if cuisine in {"", "any"}:
+        return True
+    blob = f"{name} {category}"
+    if cuisine == "chinese":
+        return not any(pattern.search(blob) for pattern in CUISINE_TEXT.values())
+    pattern = CUISINE_TEXT.get(cuisine)
+    return bool(pattern and pattern.search(blob))
+
+
 def search_nearby(body: dict[str, Any]) -> dict[str, Any]:
     latitude = finite_number(body.get("latitude"))
     longitude = finite_number(body.get("longitude"))
@@ -379,17 +454,20 @@ def search_nearby(body: dict[str, Any]) -> dict[str, Any]:
         }
 
     gcj_latitude, gcj_longitude = wgs84_to_gcj02(latitude, longitude)
-    params = urllib.parse.urlencode(
-        {
-            "key": key,
-            "location": f"{gcj_longitude:.6f},{gcj_latitude:.6f}",
-            "types": "050000",
-            "radius": str(round(max(100, min(10000, radius)))),
-            "sortrule": "distance",
-            "page_size": "20",
-            "show_fields": "business",
-        }
-    )
+    cuisine = str(body.get("cuisine") or "any")
+    nearby_query = CUISINE_NEARBY.get(cuisine, {"types": "050000", "keywords": ""})
+    query = {
+        "key": key,
+        "location": f"{gcj_longitude:.6f},{gcj_latitude:.6f}",
+        "types": nearby_query["types"],
+        "radius": str(round(max(100, min(10000, radius)))),
+        "sortrule": "distance",
+        "page_size": "25",
+        "show_fields": "business",
+    }
+    if nearby_query["keywords"]:
+        query["keywords"] = nearby_query["keywords"]
+    params = urllib.parse.urlencode(query)
     request = urllib.request.Request(
         f"{AMAP_API_URL}?{params}",
         headers={"User-Agent": "whattoeat/0.1"},
@@ -402,10 +480,24 @@ def search_nearby(body: dict[str, Any]) -> dict[str, Any]:
         raise ApiError(HTTPStatus.BAD_GATEWAY, "MAP_PROVIDER_ERROR", f"高德地点搜索失败：{error}") from error
 
     if payload.get("status") != "1":
+        info = str(payload.get("info") or "")
+        if "USERKEY" in info.upper() or "INVALID" in info.upper() and "KEY" in info.upper():
+            raise ApiError(
+                HTTPStatus.BAD_GATEWAY,
+                "MAP_PROVIDER_ERROR",
+                f"高德地点搜索失败：{info or '未知错误'}",
+            )
+        if cuisine != "any":
+            return {
+                "configured": True,
+                "provider": "amap",
+                "restaurants": [],
+                "message": "附近地图点里没有明显符合所选口味的店，可以用搜索词去外卖平台确认",
+            }
         raise ApiError(
             HTTPStatus.BAD_GATEWAY,
             "MAP_PROVIDER_ERROR",
-            f"高德地点搜索失败：{payload.get('info') or '未知错误'}",
+            f"高德地点搜索失败：{info or '未知错误'}",
         )
 
     restaurants = [
@@ -421,12 +513,16 @@ def search_nearby(body: dict[str, Any]) -> dict[str, Any]:
             "availabilityVerified": False,
         }
         for poi in payload.get("pois", [])
+        if poi_matches_cuisine(str(poi.get("name") or ""), str(poi.get("type") or ""), cuisine)
     ]
+    message = "地图数据不能确认外卖平台营业状态、菜单或配送范围"
+    if cuisine != "any" and not restaurants:
+        message = "附近地图点里没有明显符合所选口味的店，可以用搜索词去外卖平台确认"
     return {
         "configured": True,
         "provider": "amap",
-        "restaurants": restaurants,
-        "message": "地图数据不能确认外卖平台营业状态、菜单或配送范围",
+        "restaurants": restaurants[:20],
+        "message": message,
     }
 
 

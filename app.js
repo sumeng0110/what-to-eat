@@ -311,20 +311,36 @@ const ICONS = {
   cook: '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 14h16v2a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4v-2Z" stroke="currentColor" stroke-width="1.7"/><path d="M8 14V8a4 4 0 0 1 8 0v6" stroke="currentColor" stroke-width="1.7"/><path d="M9 8c0-2 1.2-3.5 3-4.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
   takeout: '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 10h18l-1.2 9.2A2 2 0 0 1 17.82 21H6.18a2 2 0 0 1-1.98-1.8L3 10Z" stroke="currentColor" stroke-width="1.7"/><path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="1.7"/></svg>',
   spark: '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v3M12 18v3M4.9 6.5 7 8.6M17 15.4l2.1 2.1M3 12h3M18 12h3M4.9 17.5 7 15.4M17 8.6l2.1-2.1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="12" r="2.4" stroke="currentColor" stroke-width="1.7"/></svg>',
+  home: '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 11.5 12 4l8 7.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.5 10.5V20h11V10.5" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>',
 };
 
-const BUDGET_RULES = {
-  cook: {
-    low: { min: 0, max: 20, label: "人均 20 元内", tone: "主打一个会过日子" },
-    mid: { min: 20, max: 40, label: "人均 20–40 元", tone: "家常发挥，吃得舒服" },
-    high: { min: 40, max: 80, label: "人均 40–80 元", tone: "今天这顿值得加点戏" },
-  },
-  takeout: {
-    low: { min: 0, max: 30, label: "人均 30 元内", tone: "省着吃，也要吃饱" },
-    mid: { min: 30, max: 60, label: "人均 30–60 元", tone: "该吃吃，该省省" },
-    high: { min: 60, max: 100, label: "人均 60–100 元", tone: "今天吃好一点" },
-  },
-};
+function budgetBands(mode, people = 1) {
+  const group = people >= 2;
+  if (mode === "cook") {
+    return group
+      ? {
+          low: { min: 0, max: 30, label: "人均 30 元内", tone: "两个人也先把肚子填饱" },
+          mid: { min: 30, max: 55, label: "人均 30–55 元", tone: "家常发挥，吃得舒服" },
+          high: { min: 55, max: 100, label: "人均 55–100 元", tone: "今天这顿值得加点戏" },
+        }
+      : {
+          low: { min: 0, max: 20, label: "人均 20 元内", tone: "主打一个会过日子" },
+          mid: { min: 20, max: 40, label: "人均 20–40 元", tone: "家常发挥，吃得舒服" },
+          high: { min: 40, max: 80, label: "人均 40–80 元", tone: "今天这顿值得加点戏" },
+        };
+  }
+  return group
+    ? {
+        low: { min: 0, max: 40, label: "人均 40 元内", tone: "两个人点，也要留点余地" },
+        mid: { min: 40, max: 80, label: "人均 40–80 元", tone: "该吃吃，该省省" },
+        high: { min: 80, max: 130, label: "人均 80–130 元", tone: "今天吃好一点" },
+      }
+    : {
+        low: { min: 0, max: 30, label: "人均 30 元内", tone: "省着吃，也要吃饱" },
+        mid: { min: 30, max: 60, label: "人均 30–60 元", tone: "该吃吃，该省省" },
+        high: { min: 60, max: 100, label: "人均 60–100 元", tone: "今天吃好一点" },
+      };
+}
 
 const LOCAL_RECIPE_INGREDIENTS = {
   "tomato-egg": ["番茄", "鸡蛋"],
@@ -388,14 +404,14 @@ function budgetHint(mode) {
   return `按人均选择，下方已换算 ${n} 人${mode === "cook" ? "食材" : "整单"}预算`;
 }
 
-function budgetLabel(mode, tier) {
+function budgetLabel(mode, tier, people = state.answers.people || 1) {
   if (tier === "any") return "预算不限";
-  return BUDGET_RULES[mode]?.[tier]?.label || "";
+  return budgetBands(mode, people)?.[tier]?.label || "";
 }
 
 function budgetOptions(mode) {
   const people = state.answers.people || 1;
-  const rules = BUDGET_RULES[mode];
+  const rules = budgetBands(mode, people);
   const options = Object.entries(rules).map(([value, rule]) => {
     const total =
       rule.min === 0
@@ -435,11 +451,11 @@ function stepCopy(id) {
     },
     skill: {
       title: "你下厨有多熟？",
-      hint: "会决定推荐快手菜还是有点挑战的菜。",
+      hint: "想挑战时不会再推荐 15 分钟快手菜。",
     },
     timeCook: {
       title: "希望多久能做好？",
-      hint: "从开始备菜到能吃上的时间。",
+      hint: "选 1 小时会优先较费功夫的菜，不是最快出锅的。",
     },
     timeDelivery: {
       title: "希望多久能送到？",
@@ -556,6 +572,16 @@ async function postJson(path, body) {
 function skillOk(recipeSkill, wanted) {
   if (wanted === "beginner") return recipeSkill === "beginner";
   if (wanted === "home") return recipeSkill === "beginner" || recipeSkill === "home";
+  if (wanted === "challenge") return recipeSkill === "home" || recipeSkill === "challenge";
+  return true;
+}
+
+function cookTimeFits(minutes, selected) {
+  const time = Number(selected);
+  if (!Number.isFinite(time)) return true;
+  if (time <= 15) return minutes <= 20;
+  if (time <= 30) return minutes <= 40;
+  if (time <= 60) return minutes >= 30 && minutes <= 120;
   return true;
 }
 
@@ -567,7 +593,7 @@ function matchesFilters(item, mode) {
   if (a.budget && a.budget !== "any" && item.budget !== a.budget) return false;
   if (mode === "cook") {
     if (!skillOk(item.skill, a.skill)) return false;
-    if (item.minutes > a.time) return false;
+    if (!cookTimeFits(item.minutes, a.time)) return false;
   } else if (item.eta > a.time) return false;
   return true;
 }
@@ -667,6 +693,8 @@ function render() {
             <div class="progress-label">${stepId === "result" ? "今晚就这个" : `第 ${state.stepIndex + 1} / ${totalAsk} 题`}</div>
             <div class="progress-track"><div class="progress-fill" style="width:${progress}%"></div></div>
           </div>
+          <button class="nav-text-btn" type="button" id="nav-history">常点</button>
+          <button class="icon-btn" type="button" id="home" aria-label="回首页">${ICONS.home}</button>
         </div>
         <div id="body"></div>
       </div>
@@ -677,6 +705,8 @@ function render() {
   root.innerHTML = "";
   root.append(phone);
   phone.querySelector("#back").addEventListener("click", () => history.back());
+  phone.querySelector("#home").addEventListener("click", goHome);
+  phone.querySelector("#nav-history").addEventListener("click", openHistory);
 
   const body = phone.querySelector("#body");
   if (state.thinking) {
@@ -758,7 +788,7 @@ function renderHistoryScreen(time) {
                       <article class="history-item">
                         <div>
                           <strong>${escapeText(item.storeName)}</strong>
-                          <p>${escapeText(item.dishName)} · ${item.price ? `${item.people || 1} 人 ¥${Number(item.price).toFixed(0)}` : "价格未记录"} · ${budgetLabel("takeout", item.budget)}</p>
+                          <p>${escapeText(item.dishName)} · ${item.price ? `${item.people || 1} 人 ¥${Number(item.price).toFixed(0)}` : "价格未记录"} · ${budgetLabel("takeout", item.budget, item.people || 1)}</p>
                         </div>
                         <button class="icon-btn delete-history" type="button" data-id="${escapeText(item.id)}" aria-label="删除 ${escapeText(item.storeName)}">×</button>
                       </article>`,
@@ -1033,17 +1063,27 @@ function renderResult() {
         <button class="cta" type="button" data-act="lock">就这个</button>
         <button class="cta primary" type="button" data-act="redraw">再抽一次</button>
         <button class="cta ghost" type="button" data-act="edit">改条件</button>
+        <button class="cta ghost" type="button" data-act="home">回首页</button>
       </div>`;
   } else {
     const historyPick = item.historyPick;
-    const nearby = item.nearby || [];
+    const picks = item.picks?.length ? item.picks : (item.nearby || []).slice(0, 2);
+    const backups = item.backups || (item.nearby || []).slice(picks.length, 10);
     const historyPerPerson =
       historyPick?.price && historyPick?.people
         ? Math.round(historyPick.price / historyPick.people)
         : null;
+    const title = historyPick?.dishName || picks[0]?.name || item.searchTerm;
+    const kicker = historyPick
+      ? "从我的常点里选"
+      : picks.length === 2
+        ? "今晚先看这两家"
+        : picks.length === 1
+          ? "今晚先看这家"
+          : "按今晚的口味给个方向";
     wrap.innerHTML = `
-      <div class="result-kicker">${historyPick ? "从我的常点里选" : "按今晚的口味给个方向"}</div>
-      <h1 class="result-title">${escapeText(historyPick?.dishName || item.searchTerm)}</h1>
+      <div class="result-kicker">${kicker}</div>
+      <h1 class="result-title">${escapeText(title)}</h1>
       <div class="meta">
         <span class="chip">${a.people} 人</span>
         <span class="chip">${cuisineLabel(a.cuisine)}</span>
@@ -1056,9 +1096,20 @@ function renderResult() {
               <h3>${escapeText(historyPick.storeName)}</h3>
               <p>这是你自己保存的常点，不是系统编出来的。${historyPerPerson ? `上次人均约 ¥${historyPerPerson}。` : ""}${historyPick.locationLabel ? ` 常用地点：${escapeText(historyPick.locationLabel)}。` : ""}</p>
             </article>`
+          : ""
+      }
+      ${
+        picks.length
+          ? `<section class="nearby-section">
+              <div class="section-heading">
+                <h3>${historyPick ? (picks.length === 1 ? "附近也可以先看这家" : "附近也可以先看这两家") : picks.length === 1 ? "就这家" : "就这两家"}</h3>
+                <span>主推</span>
+              </div>
+              ${picks.map((restaurant) => nearbyItemHtml(restaurant, "pick")).join("")}
+            </section>`
           : `<article class="result-card">
-              <h3>还没有匹配的常点</h3>
-              <p>先用下面的搜索词去常用外卖平台确认；也可以回首页把真实订单加入“我的常点”。</p>
+              <h3>附近没有对口的店</h3>
+              <p>${escapeText(state.mapStatus || "配置高德 Web 服务 Key 后，会在这里拍板 1–2 家。")}</p>
             </article>`
       }
       <article class="result-card">
@@ -1066,38 +1117,63 @@ function renderResult() {
         <div class="search-term">${escapeText(item.searchTerm)}</div>
         <button class="text-button" type="button" data-act="copy" data-copy="${escapeText(item.searchTerm)}">复制搜索词</button>
       </article>
-      <section class="nearby-section">
-        <div class="section-heading">
-          <h3>地图上附近的餐厅</h3>
-          <span>${nearby.length ? `${nearby.length} 家` : "暂不可用"}</span>
-        </div>
-        ${
-          nearby.length
-            ? nearby
-                .slice(0, 5)
-                .map(
-                  (restaurant) => `
-                    <article class="nearby-item">
-                      <div>
-                        <strong>${escapeText(restaurant.name)}</strong>
-                        <p>${escapeText(restaurant.address || restaurant.category || "餐饮")}</p>
-                      </div>
-                      <span>${restaurant.distanceMeters ? `${restaurant.distanceMeters}m` : ""}</span>
-                    </article>`,
-                )
-                .join("")
-            : `<div class="empty compact"><p>${escapeText(state.mapStatus || "配置高德 Web 服务 Key 后显示真实附近餐厅。")}</p></div>`
-        }
-        <p class="source-note">地图结果只表示附近存在，不保证已入驻外卖平台或当前可配送。</p>
-      </section>
+      ${
+        backups.length
+          ? `<section class="nearby-section nearby-backup">
+              <div class="section-heading">
+                <h3>备选</h3>
+                <span>${backups.length} 家</span>
+              </div>
+              <p class="source-note">主推不合适再看，不必把每一家都比一遍。</p>
+              ${backups.map((restaurant) => nearbyItemHtml(restaurant, "backup")).join("")}
+            </section>`
+          : ""
+      }
+      <p class="source-note">地图结果只表示附近存在，不保证已入驻外卖平台或当前可配送。</p>
       <div class="actions">
         <button class="cta" type="button" data-act="lock">就这个</button>
         <button class="cta primary" type="button" data-act="redraw">再抽一次</button>
         <button class="cta ghost" type="button" data-act="edit">改条件</button>
+        <button class="cta ghost" type="button" data-act="home">回首页</button>
       </div>`;
   }
   bindResultActions(wrap);
   return wrap;
+}
+
+function nearbyItemHtml(restaurant, tone) {
+  return `
+    <article class="nearby-item ${tone}">
+      <div>
+        <strong>${escapeText(restaurant.name)}</strong>
+        <p>${escapeText(restaurant.address || restaurant.category || "餐饮")}</p>
+      </div>
+      <span>${restaurant.distanceMeters ? `${restaurant.distanceMeters}m` : ""}</span>
+    </article>`;
+}
+
+function splitNearbyPicks(nearby, excludeIds = []) {
+  const list = (nearby || []).filter((restaurant) => restaurant?.name);
+  if (!list.length) return { picks: [], backups: [] };
+  const unused = list.filter((restaurant) => restaurant.id && !excludeIds.includes(restaurant.id));
+  const pool = unused.length ? unused : list;
+  const picks = pool.slice(0, Math.min(2, pool.length));
+  const pickIds = new Set(picks.map((restaurant) => restaurant.id));
+  const backups = list.filter((restaurant) => !pickIds.has(restaurant.id)).slice(0, 8);
+  return { picks, backups };
+}
+
+function takeoutGuidePayload(answers, historyPick, nearby, searchTerm) {
+  const { picks, backups } = splitNearbyPicks(nearby, state.excludeIds);
+  return {
+    id: historyPick?.id || `takeout-${answers.cuisine}-${answers.spice}-${answers.budget}`,
+    type: "takeout-guide",
+    historyPick,
+    nearby,
+    picks,
+    backups,
+    searchTerm,
+  };
 }
 
 function bindResultActions(wrap) {
@@ -1116,7 +1192,8 @@ function bindResultActions(wrap) {
         }
       }
       if (act === "redraw") redraw();
-      if (act === "edit" || act === "retry" || act === "home") restart(act !== "home");
+      if (act === "home") goHome();
+      if (act === "edit" || act === "retry") restart(true);
     });
   });
 }
@@ -1144,6 +1221,21 @@ function snapshot() {
 function applySnapshot(s) {
   if (!s) return;
   state = { ...state, ...s, answers: { ...s.answers }, thinking: false };
+  render();
+}
+
+function goHome() {
+  state = {
+    view: "splash",
+    stepIndex: 0,
+    answers: {},
+    result: null,
+    nearby: [],
+    mapStatus: null,
+    thinking: false,
+    excludeIds: [],
+  };
+  history.pushState({ view: "splash" }, "");
   render();
 }
 
@@ -1179,7 +1271,11 @@ function choose(key, value) {
 function pickApiResult(items) {
   const available = items.filter((item) => !state.excludeIds.includes(item.id));
   const pool = available.length ? available : items;
-  return pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
+  if (!pool.length) return null;
+  const sorted = [...pool].sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
+  const best = sorted[0].matchScore || 0;
+  const top = sorted.filter((item) => (item.matchScore || 0) >= best - 8).slice(0, 2);
+  return top[Math.floor(Math.random() * top.length)];
 }
 
 function pickHistoryOrder(answers) {
@@ -1265,6 +1361,7 @@ async function requestRecommendation() {
       latitude: a.location.latitude,
       longitude: a.location.longitude,
       radius: 3000,
+      cuisine: a.cuisine,
     });
     nearby = payload.restaurants || [];
     mapStatus = payload.message;
@@ -1274,26 +1371,19 @@ async function requestRecommendation() {
   state.nearby = nearby;
   state.mapStatus = mapStatus;
 
-  return {
-    id: historyPick?.id || `takeout-${a.cuisine}-${a.spice}-${a.budget}`,
-    type: "takeout-guide",
-    historyPick,
-    nearby,
-    searchTerm: takeoutSearchTerm(a, historyPick),
-  };
+  return takeoutGuidePayload(a, historyPick, nearby, takeoutSearchTerm(a, historyPick));
 }
 
 function localFallback() {
   const mode = state.answers.mode;
   if (mode === "takeout") {
     const historyPick = pickHistoryOrder(state.answers);
-    return {
-      id: historyPick?.id || `takeout-${state.answers.cuisine}-${state.answers.spice}`,
-      type: "takeout-guide",
+    return takeoutGuidePayload(
+      state.answers,
       historyPick,
-      nearby: [],
-      searchTerm: takeoutSearchTerm(state.answers, historyPick),
-    };
+      [],
+      takeoutSearchTerm(state.answers, historyPick),
+    );
   }
 
   const pantry = new Set((state.answers.pantry || []).map((item) => item.trim().toLowerCase()));
@@ -1307,9 +1397,16 @@ function localFallback() {
       ),
     }))
     .filter((recipe) => state.answers.willingToShop || recipe.missingIngredients.length === 0)
-    .sort((a, b) => a.missingIngredients.length - b.missingIngredients.length);
+    .sort((a, b) => {
+      if (a.missingIngredients.length !== b.missingIngredients.length) {
+        return a.missingIngredients.length - b.missingIngredients.length;
+      }
+      const wantEffort = a.skill === "challenge" || Number(state.answers.time) >= 60 || state.answers.skill === "challenge";
+      if (wantEffort) return b.minutes - a.minutes;
+      return a.minutes - b.minutes;
+    });
 
-  return matching.length ? matching[Math.floor(Math.random() * matching.length)] : null;
+  return matching.length ? matching[0] : null;
 }
 
 async function revealResult(push) {
@@ -1325,7 +1422,12 @@ async function revealResult(push) {
     state.result = localFallback();
   }
 
-  if (state.result) state.excludeIds.push(state.result.id);
+  if (state.result) {
+    state.excludeIds.push(state.result.id);
+    for (const shop of state.result.picks || []) {
+      if (shop.id) state.excludeIds.push(shop.id);
+    }
+  }
   state.thinking = false;
   if (push) history.pushState(snapshot(), "");
   else history.replaceState(snapshot(), "");

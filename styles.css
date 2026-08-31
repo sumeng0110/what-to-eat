@@ -159,9 +159,21 @@ a:focus-visible,
 
 .progress-wrap {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.nav-text-btn {
+  border: 0;
+  background: transparent;
+  color: var(--color-primary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  padding: 8px 4px;
+  flex-shrink: 0;
 }
 
 .progress-label {
@@ -714,6 +726,19 @@ a:focus-visible,
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   padding: 12px 14px;
+}
+
+.nearby-item.pick {
+  border-color: var(--color-primary);
+  background: var(--color-muted);
+}
+
+.nearby-backup {
+  opacity: 0.92;
+}
+
+.nearby-item.backup {
+  padding: 10px 12px;
 }
 
 .nearby-item p {

@@ -3,8 +3,10 @@ const STORAGE_KEY = "whattoeat.order-history.v1";
 function takeoutBudgetTier(price, people) {
   if (!price) return "mid";
   const perPerson = price / people;
-  if (perPerson <= 30) return "low";
-  if (perPerson <= 60) return "mid";
+  const lowMax = people >= 2 ? 40 : 30;
+  const midMax = people >= 2 ? 80 : 60;
+  if (perPerson <= lowMax) return "low";
+  if (perPerson <= midMax) return "mid";
   return "high";
 }
 
