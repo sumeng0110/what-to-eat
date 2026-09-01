@@ -401,7 +401,11 @@ function currentStepId() {
 
 function budgetHint(mode) {
   const n = state.answers.people || 1;
-  return `按人均选择，下方已换算 ${n} 人${mode === "cook" ? "食材" : "整单"}预算`;
+  const base = `按人均选择，下方已换算 ${n} 人${mode === "cook" ? "食材" : "整单"}预算`;
+  if (mode !== "takeout") return base;
+  const typical = window.OrderHistory?.typicalPerPerson?.();
+  if (!typical) return `${base}。有常点后，会在你选的上限里优先更接近平时的价。`;
+  return `${base}。你的常点大多是人均约 ¥${Math.round(typical)}，选好上限后会优先靠近这个价，而不是顶格花满。`;
 }
 
 function budgetLabel(mode, tier, people = state.answers.people || 1) {
@@ -1073,6 +1077,15 @@ function renderResult() {
       historyPick?.price && historyPick?.people
         ? Math.round(historyPick.price / historyPick.people)
         : null;
+    const typicalSpend = window.OrderHistory?.typicalPerPerson?.();
+    const typicalNote = (() => {
+      if (!typicalSpend || !historyPerPerson) return "";
+      const roundTypical = Math.round(typicalSpend);
+      if (Math.abs(historyPerPerson - roundTypical) > 3) {
+        return `你的常点大多人均约 ¥${roundTypical}，今晚在预算上限里优先靠近这个价。`;
+      }
+      return `和你平时人均约 ¥${roundTypical} 接近。`;
+    })();
     const title = historyPick?.dishName || picks[0]?.name || item.searchTerm;
     const kicker = historyPick
       ? "从我的常点里选"
@@ -1094,7 +1107,7 @@ function renderResult() {
         historyPick
           ? `<article class="result-card featured-order">
               <h3>${escapeText(historyPick.storeName)}</h3>
-              <p>这是你自己保存的常点，不是系统编出来的。${historyPerPerson ? `上次人均约 ¥${historyPerPerson}。` : ""}${historyPick.locationLabel ? ` 常用地点：${escapeText(historyPick.locationLabel)}。` : ""}</p>
+              <p>这是你自己保存的常点，不是系统编出来的。${historyPerPerson ? `上次人均约 ¥${historyPerPerson}。` : ""}${typicalNote}${historyPick.locationLabel ? ` 常用地点：${escapeText(historyPick.locationLabel)}。` : ""}</p>
             </article>`
           : ""
       }
@@ -1278,6 +1291,20 @@ function pickApiResult(items) {
   return top[Math.floor(Math.random() * top.length)];
 }
 
+function spendFitScore(item, answers) {
+  if (!item.price || !item.people) return 0;
+  const per = item.price / item.people;
+  const typical = window.OrderHistory?.typicalPerPerson?.();
+  const band = answers.budget === "any" ? null : budgetBands("takeout", answers.people || 1)?.[answers.budget];
+  const ceiling = band?.max ?? Infinity;
+  if (per > ceiling + 1) return -6;
+  const target = typical == null ? null : Math.min(typical, ceiling);
+  if (target == null) return Math.max(0, 4 - per / 20);
+  const over = Math.max(0, per - target);
+  const under = Math.max(0, target - per);
+  return Math.round(8 - over / 3 - under / 8);
+}
+
 function pickHistoryOrder(answers) {
   const items = window.OrderHistory?.read() || [];
   const scored = items
@@ -1291,7 +1318,8 @@ function pickHistoryOrder(answers) {
       if (requestedSpice === itemSpice) score += 4;
       else score -= 5;
       if (answers.budget === "any" || item.budget === answers.budget) score += 3;
-      else score -= 3;
+      else score -= 8;
+      score += spendFitScore(item, answers);
       if (
         answers.location?.label &&
         item.locationLabel &&
@@ -1320,7 +1348,12 @@ function takeoutSearchTerm(answers, historyPick) {
       southeast_asian: "东南亚 泰餐",
     }[answers.cuisine] || "附近美食";
   const spice = spiceLabel(answers.spice);
-  return `${cuisine} ${spice} ${budgetLabel("takeout", answers.budget)}`.trim();
+  const typical = window.OrderHistory?.typicalPerPerson?.();
+  const budgetText =
+    typical && answers.budget !== "any"
+      ? `人均约${Math.round(typical)}`
+      : budgetLabel("takeout", answers.budget);
+  return `${cuisine} ${spice} ${budgetText}`.trim();
 }
 
 async function requestRecommendation() {

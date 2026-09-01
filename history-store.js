@@ -66,5 +66,16 @@
     write([]);
   }
 
-  global.OrderHistory = { read, add, remove, clear };
+  function typicalPerPerson() {
+    const values = read()
+      .filter((item) => item.price && item.people)
+      .map((item) => item.price / item.people)
+      .sort((a, b) => a - b);
+    if (!values.length) return null;
+    const middle = Math.floor((values.length - 1) / 2);
+    if (values.length % 2) return values[middle];
+    return (values[middle] + values[middle + 1]) / 2;
+  }
+
+  global.OrderHistory = { read, add, remove, clear, typicalPerPerson };
 })(window);
